@@ -91,6 +91,13 @@ Notes:
 - **RLS**: every table has row-level security enabled, policies scoped to
   `auth.uid() = user_id`. Storage bucket policies scoped to the same
   per-user path prefix. Nothing is public in MVP.
+- **`profiles` rows are auto-created** by an `on_auth_user_created` trigger on
+  `auth.users` (implemented in
+  [`supabase/migrations/20260726000000_init_schema.sql`](./supabase/migrations/20260726000000_init_schema.sql)),
+  so `library_games`/`journal_entries` can safely FK to `profiles.id` without
+  the app ever inserting a profile row itself.
+- **`library_games` has a `unique (user_id, rawg_id)` constraint** — a user
+  can't add the same RAWG game to their library twice.
 
 ### Pinned for later (not built now, schema should not preclude them)
 - `hours_played` (numeric) and `completion_status` (enum) on `journal_entries`
