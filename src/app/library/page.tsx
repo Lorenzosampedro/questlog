@@ -1,16 +1,15 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
+import { TomeShelf, type ShelfGame } from "@/components/tome-shelf";
 
-type LibraryGame = {
+type LibraryGameRow = {
   id: string;
   name: string;
   cover_url: string | null;
-  platforms: string[] | null;
-  release_date: string | null;
+  journal_entries: { count: number }[];
 };
 
 export default async function LibraryPage() {
@@ -20,23 +19,31 @@ export default async function LibraryPage() {
   }
 
   const supabase = await createClient();
-  const { data: games } = await supabase
+  const { data: rows } = await supabase
     .from("library_games")
-    .select("id, name, cover_url, platforms, release_date")
+    .select("id, name, cover_url, journal_entries(count)")
     .order("added_at", { ascending: false })
-    .returns<LibraryGame[]>();
+    .returns<LibraryGameRow[]>();
+
+  const games: ShelfGame[] =
+    rows?.map((row) => ({
+      id: row.id,
+      name: row.name,
+      coverUrl: row.cover_url,
+      entryCount: row.journal_entries?.[0]?.count ?? 0,
+    })) ?? [];
 
   return (
     <div className="flex flex-1 flex-col gap-8 px-6 py-16">
-      <div className="mx-auto flex w-full max-w-4xl items-center justify-between">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Your library</h1>
         <Link href="/library/add" className={buttonVariants({ size: "sm" })}>
           Add a game
         </Link>
       </div>
 
-      <div className="mx-auto w-full max-w-4xl">
-        {!games || games.length === 0 ? (
+      <div className="mx-auto w-full max-w-5xl">
+        {games.length === 0 ? (
           <p className="text-center text-zinc-500">
             No games yet.{" "}
             <Link href="/library/add" className="underline">
@@ -44,24 +51,7 @@ export default async function LibraryPage() {
             </Link>
           </p>
         ) : (
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {games.map((game) => (
-              <li key={game.id} className="flex flex-col gap-2">
-                <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900">
-                  {game.cover_url && (
-                    <Image
-                      src={game.cover_url}
-                      alt=""
-                      fill
-                      sizes="(min-width: 768px) 25vw, 50vw"
-                      className="object-cover"
-                    />
-                  )}
-                </div>
-                <p className="text-sm font-medium">{game.name}</p>
-              </li>
-            ))}
-          </ul>
+          <TomeShelf games={games} />
         )}
       </div>
     </div>
