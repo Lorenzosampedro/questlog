@@ -87,3 +87,40 @@ export async function deleteEntry(entryId: string, gameId: string) {
   revalidatePath(`/library/${gameId}`);
   redirect(`/library/${gameId}`);
 }
+
+/**
+ * Delete many entries in one round trip.
+ *
+ * Note there is no loop here: `.in("id", ids)` compiles to a single
+ * `delete ... where id in (...)` statement, so the whole batch is one
+ * implicit transaction — it either all lands or none of it does. Deleting in
+ * a `for` loop would be N round trips *and* could leave you half-deleted if
+ * the network dropped partway through.
+ *
+ * The `.eq("user_id", ...)` is belt-and-braces: RLS already makes it
+ * impossible to delete another user's rows, but a client can send any ids it
+ * likes, so we scope the statement explicitly too. If the RLS policy is ever
+ * edited wrongly, this line is what still saves us.
+ */
+export async function deleteEntries(entryIds: string[], gameId: string) {
+  const user = await getUser();
+  if (!user) redirect("/auth/login");
+
+  if (entryIds.length === 0) return { success: true, deleted: 0 };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("journal_entries")
+    .delete()
+    .in("id", entryIds)
+    .eq("user_id", user.id)
+    .select("id");
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/library/${gameId}`);
+  revalidatePath("/library");
+  return { success: true, deleted: data?.length ?? 0 };
+}

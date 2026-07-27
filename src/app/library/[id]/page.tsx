@@ -5,6 +5,8 @@ import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
 import { PageTransition } from "@/components/page-transition";
+import { EntryList } from "./entry-list";
+import { DeleteGameButton } from "./delete-game-button";
 
 type LibraryGame = {
   id: string;
@@ -53,9 +55,19 @@ export default async function GamePage({
       .returns<JournalEntry[]>(),
   ]);
 
-  if (gameError) throw new Error(`Failed to load game: ${gameError.message}`);
+  // PostgrestError carries `code`, `details` and `hint` alongside `message` —
+  // and for RLS/permission problems the useful information is almost always in
+  // `code`/`details`, not `message`. Surfacing only `.message` is why Supabase
+  // failures so often read as "" or a bare "JSON object requested".
+  if (gameError) {
+    throw new Error(
+      `Failed to load game [${gameError.code}]: ${gameError.message} — ${gameError.details ?? ""} ${gameError.hint ?? ""}`,
+    );
+  }
   if (entriesError) {
-    throw new Error(`Failed to load journal entries: ${entriesError.message}`);
+    throw new Error(
+      `Failed to load journal entries [${entriesError.code}]: ${entriesError.message} — ${entriesError.details ?? ""} ${entriesError.hint ?? ""}`,
+    );
   }
   if (!game) notFound();
 
@@ -88,6 +100,14 @@ export default async function GamePage({
           {game.genres && game.genres.length > 0 && (
             <p className="text-sm text-zinc-500">{game.genres.join(", ")}</p>
           )}
+
+          <div className="mt-2">
+            <DeleteGameButton
+              gameId={game.id}
+              gameName={game.name}
+              entryCount={entries?.length ?? 0}
+            />
+          </div>
         </div>
       </div>
 
@@ -110,24 +130,20 @@ export default async function GamePage({
             </Link>
           </p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {entries.map((entry) => (
-              <li key={entry.id}>
-                <Link
-                  href={`/library/${game.id}/entries/${entry.id}`}
-                  className="flex flex-col gap-1 rounded-lg border border-zinc-200 p-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:hover:bg-zinc-900"
-                >
-                  <span className="font-medium">
-                    {entry.title || "Untitled entry"}
-                  </span>
-                  <span className="text-sm text-zinc-500">
-                    {(entry.date_played ?? entry.created_at).slice(0, 10)}
-                    {entry.rating ? ` · ${entry.rating}★` : ""}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          // The page stays a Server Component; only the interactive list is
+          // client-side. We map snake_case DB rows to camelCase props here so
+          // the client component never has to know about the database's
+          // column naming.
+          <EntryList
+            gameId={game.id}
+            entries={entries.map((entry) => ({
+              id: entry.id,
+              title: entry.title,
+              datePlayed: entry.date_played,
+              createdAt: entry.created_at,
+              rating: entry.rating,
+            }))}
+          />
         )}
       </div>
     </PageTransition>
