@@ -8,6 +8,7 @@ export type ShelfGame = {
   name: string;
   coverUrl: string | null;
   entryCount: number;
+  spineColor: string | null;
 };
 
 const listVariants = {
@@ -37,6 +38,7 @@ export function TomeShelf({ games }: { games: ShelfGame[] }) {
               name={game.name}
               coverUrl={game.coverUrl}
               entryCount={game.entryCount}
+              spineColor={game.spineColor}
             />
           </motion.li>
         ))}

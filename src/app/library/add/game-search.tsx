@@ -70,6 +70,10 @@ export function GameSearch() {
 
       {loading && <p className="text-sm text-zinc-500">Searching...</p>}
 
+      {!loading && query.trim() && displayedResults.length === 0 && (
+        <p className="text-sm text-zinc-500">No games found for &quot;{query}&quot;.</p>
+      )}
+
       <ul className="flex flex-col gap-3">
         {displayedResults.map((game) => {
           const added = addedIds.has(game.rawgId);

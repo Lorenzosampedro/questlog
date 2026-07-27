@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
+import { PageTransition } from "@/components/page-transition";
 
 type LibraryGame = {
   id: string;
@@ -34,7 +35,10 @@ export default async function GamePage({
 
   const supabase = await createClient();
 
-  const [{ data: game }, { data: entries }] = await Promise.all([
+  const [
+    { data: game, error: gameError },
+    { data: entries, error: entriesError },
+  ] = await Promise.all([
     supabase
       .from("library_games")
       .select("id, name, cover_url, platforms, genres, release_date")
@@ -49,16 +53,20 @@ export default async function GamePage({
       .returns<JournalEntry[]>(),
   ]);
 
+  if (gameError) throw new Error(`Failed to load game: ${gameError.message}`);
+  if (entriesError) {
+    throw new Error(`Failed to load journal entries: ${entriesError.message}`);
+  }
   if (!game) notFound();
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 py-16">
+    <PageTransition className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 py-16">
       <Link href="/library" className="text-sm text-zinc-500 hover:underline">
         ← Back to library
       </Link>
 
-      <div className="flex gap-6">
-        <div className="relative h-48 w-36 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900">
+      <div className="flex flex-col gap-6 sm:flex-row">
+        <div className="relative h-48 w-36 shrink-0 self-center overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900 sm:self-auto">
           {game.cover_url && (
             <Image
               src={game.cover_url}
@@ -69,7 +77,7 @@ export default async function GamePage({
             />
           )}
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col items-center gap-2 text-center sm:items-start sm:text-left">
           <h1 className="text-2xl font-semibold tracking-tight">{game.name}</h1>
           <p className="text-sm text-zinc-500">
             {game.release_date?.slice(0, 4) ?? "Unknown year"}
@@ -107,7 +115,7 @@ export default async function GamePage({
               <li key={entry.id}>
                 <Link
                   href={`/library/${game.id}/entries/${entry.id}`}
-                  className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                  className="flex flex-col gap-1 rounded-lg border border-zinc-200 p-3 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:hover:bg-zinc-900"
                 >
                   <span className="font-medium">
                     {entry.title || "Untitled entry"}
@@ -122,6 +130,6 @@ export default async function GamePage({
           </ul>
         )}
       </div>
-    </div>
+    </PageTransition>
   );
 }

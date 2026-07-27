@@ -38,3 +38,10 @@ Schema lives in [`supabase/migrations/`](./supabase/migrations) for version cont
 applied by hand via the Supabase dashboard's **SQL Editor** (copy the migration file's contents
 in, run it) rather than `supabase db push`, since that command needs the database password.
 Run migrations in filename order when setting up a new project.
+
+## Testing
+
+```bash
+npm run test        # Vitest — pure logic (spine thickness scaling, RAWG data mapping)
+npm run test:e2e    # Playwright — see e2e/README.md for the authenticated-flow setup
+```

@@ -1,25 +1,12 @@
 import "server-only";
+import { mapRawgGame, type RawgApiGame, type RawgGameSummary } from "@/lib/rawg-mapper";
+
+export type { RawgGameSummary } from "@/lib/rawg-mapper";
 
 const RAWG_BASE_URL = "https://api.rawg.io/api";
 
-export type RawgGameSummary = {
-  rawgId: number;
-  name: string;
-  coverUrl: string | null;
-  platforms: string[];
-  genres: string[];
-  releaseDate: string | null;
-};
-
 type RawgSearchResponse = {
-  results: {
-    id: number;
-    name: string;
-    background_image: string | null;
-    platforms?: { platform: { id: number; name: string } }[];
-    genres?: { id: number; name: string }[];
-    released: string | null;
-  }[];
+  results: RawgApiGame[];
 };
 
 export async function searchGames(query: string): Promise<RawgGameSummary[]> {
@@ -37,12 +24,5 @@ export async function searchGames(query: string): Promise<RawgGameSummary[]> {
 
   const data: RawgSearchResponse = await res.json();
 
-  return data.results.map((g) => ({
-    rawgId: g.id,
-    name: g.name,
-    coverUrl: g.background_image,
-    platforms: (g.platforms ?? []).map((p) => p.platform.name),
-    genres: (g.genres ?? []).map((genre) => genre.name),
-    releaseDate: g.released,
-  }));
+  return data.results.map(mapRawgGame);
 }

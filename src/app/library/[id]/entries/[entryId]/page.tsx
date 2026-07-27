@@ -4,6 +4,7 @@ import type { JSONContent } from "@tiptap/core";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
+import { PageTransition } from "@/components/page-transition";
 import { EntryView } from "../entry-view";
 
 type JournalEntryRow = {
@@ -25,17 +26,18 @@ export default async function EntryPage({
   if (!user) redirect("/auth/login");
 
   const supabase = await createClient();
-  const { data: entry } = await supabase
+  const { data: entry, error } = await supabase
     .from("journal_entries")
     .select("id, title, body, date_played, rating, created_at")
     .eq("id", entryId)
     .maybeSingle()
     .returns<JournalEntryRow>();
 
+  if (error) throw new Error(`Failed to load entry: ${error.message}`);
   if (!entry) notFound();
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
+    <PageTransition className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
       <Link href={`/library/${id}`} className="text-sm text-zinc-500 hover:underline">
         ← Back to game
       </Link>
@@ -59,6 +61,6 @@ export default async function EntryPage({
       </div>
 
       <EntryView body={entry.body} />
-    </div>
+    </PageTransition>
   );
 }
