@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -16,11 +16,35 @@ type TomeProps = {
   coverUrl: string | null;
   entryCount: number;
   spineColor: string | null;
+  isDragging?: boolean;
 };
 
-export function Tome({ id, name, coverUrl, entryCount, spineColor }: TomeProps) {
+export function Tome({
+  id,
+  name,
+  coverUrl,
+  entryCount,
+  spineColor,
+  isDragging = false,
+}: TomeProps) {
   const depth = getSpineDepth(entryCount);
+
+  // Hover is tracked in state rather than with motion's `whileHover`, and the
+  // reason is the drag interaction. `whileHover` is driven by pointerenter /
+  // pointerleave, but a drag sensor captures the pointer — so once the drag
+  // starts the browser stops delivering pointerleave to this element and the
+  // hover pose latches on forever. Owning the state is what lets us clear it.
+  const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (isDragging) {
+      setIsHovered(false);
+      setIsFocused(false);
+    }
+  }, [isDragging]);
+
+  const isLifted = !isDragging && (isHovered || isFocused);
 
   const spineBackground = spineColor
     ? `linear-gradient(to bottom, color-mix(in oklab, ${spineColor} 65%, white), ${spineColor}, color-mix(in oklab, ${spineColor} 70%, black))`
@@ -31,7 +55,16 @@ export function Tome({ id, name, coverUrl, entryCount, spineColor }: TomeProps) 
       href={`/library/${id}`}
       className="group flex shrink-0 flex-col items-center gap-3 focus-visible:outline-none"
       aria-label={`${name} — ${entryCount} ${entryCount === 1 ? "entry" : "entries"}`}
-      onFocus={() => setIsFocused(true)}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
+      // After a drop the pointer is often still sitting over the book without
+      // having "entered" it, so no pointerenter is coming. The next mouse
+      // movement re-establishes hover; a repeat set to the same value is a
+      // no-op in React, so this costs nothing.
+      onPointerMove={() => setIsHovered(true)}
+      // Only lift on keyboard focus. A plain onFocus also fires when the link
+      // is clicked, which would leave the book raised after every click.
+      onFocus={(event) => setIsFocused(event.currentTarget.matches(":focus-visible"))}
       onBlur={() => setIsFocused(false)}
     >
       <div style={{ perspective: 900 }}>
@@ -43,11 +76,10 @@ export function Tome({ id, name, coverUrl, entryCount, spineColor }: TomeProps) 
             transformStyle: "preserve-3d",
           }}
           animate={
-            isFocused
+            isLifted
               ? { rotateY: 0, y: -10, scale: 1.05 }
               : { rotateY: -22, y: 0, scale: 1 }
           }
-          whileHover={{ rotateY: 0, y: -10, scale: 1.05 }}
           transition={{ type: "spring", stiffness: 300, damping: 22 }}
         >
           {/* spine / depth edge — rotated around its own center then pushed out

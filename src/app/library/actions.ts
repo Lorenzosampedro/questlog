@@ -20,6 +20,21 @@ export async function addGameToLibrary(game: RawgGameSummary) {
   const spineColor = game.coverUrl ? await getAverageColor(game.coverUrl) : null;
 
   const supabase = await createClient();
+
+  // New games land at the front of the shelf, matching the old "newest first"
+  // behaviour. We take one below the current minimum rather than shifting
+  // every other row up by one: that's a single-row write instead of an N-row
+  // rewrite. Negative values are fine — nothing reads sort_order as an index,
+  // only as a relative ordering. `reorderLibrary` renumbers back to 0..n-1 on
+  // the next drag, so the values never drift far.
+  const { data: first } = await supabase
+    .from("library_games")
+    .select("sort_order")
+    .eq("user_id", user.id)
+    .order("sort_order", { ascending: true })
+    .limit(1)
+    .maybeSingle<{ sort_order: number }>();
+
   const { error } = await supabase.from("library_games").insert({
     user_id: user.id,
     rawg_id: game.rawgId,
@@ -29,9 +44,42 @@ export async function addGameToLibrary(game: RawgGameSummary) {
     genres: game.genres,
     release_date: game.releaseDate,
     spine_color: spineColor,
+    sort_order: first ? first.sort_order - 1 : 0,
   });
 
   if (error && error.code !== UNIQUE_VIOLATION) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/library");
+  return { success: true };
+}
+
+/**
+ * Persist a new shelf arrangement.
+ *
+ * `orderedIds` is the complete, final order of the user's shelf — not a
+ * "moved X from 3 to 7" delta. Sending the whole array makes the operation
+ * idempotent: replaying it twice gives the same result, and there's no way for
+ * a dropped request to leave the shelf subtly out of step. For a personal
+ * library (tens of games) the payload is a few hundred bytes; deltas would
+ * only start paying off in the thousands.
+ *
+ * The actual renumbering happens in the `reorder_library_games` SQL function —
+ * see the migration for why it can't be expressed as a PostgREST upsert.
+ */
+export async function reorderLibrary(orderedIds: string[]) {
+  const user = await getUser();
+  if (!user) redirect("/auth/login");
+
+  if (orderedIds.length === 0) return { success: true };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reorder_library_games", {
+    p_ids: orderedIds,
+  });
+
+  if (error) {
     return { error: error.message };
   }
 

@@ -151,6 +151,9 @@ Notes:
 - Journal entry CRUD: Tiptap rich text (highlight + formatting toolbar),
   optional embedded images/videos (Supabase Storage), optional date-played,
   optional 1–5 rating.
+- Library management: remove a game (cascades to its entries, plus Storage
+  cleanup for embedded media), batch-delete journal entries, drag-and-drop
+  shelf reordering persisted to a `sort_order` column.
 - Fully private to the logged-in user.
 - Responsive layout (shelf + editor both usable on mobile).
 - Vitest unit tests for the thickness-scaling function and any non-trivial
@@ -193,6 +196,9 @@ Notes:
    (sign up → add game → create entry → see it reflected on the shelf).
 10. **CS50 deliverables** — write README.md (incl. distinctiveness/complexity
     rationale), record demo video, confirm production deploy on Vercel.
+11. **Library management QoL** — batch entry deletion, game deletion with
+    cascade + Storage cleanup, drag-and-drop shelf reordering
+    (`sort_order` column + `reorder_library_games()` SQL function).
 
 ### After MVP ships
 Revisit the "pinned for later" list in Section 5 — public profiles first

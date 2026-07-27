@@ -47,8 +47,33 @@ app are things CS50's problem sets never touch:
   agree on one data model (a `library_game` owning many `journal_entries`,
   entry count driving spine width, entry body driving storage cleanup on
   delete) is where the actual complexity lives.
+- **The shelf is arrangeable, and keeping that consistent is a distributed-
+  state problem.** Books can be dragged into any order the user likes
+  (`@dnd-kit`), which meant solving three separate problems. Postgres: "set a
+  different value on each of N rows" can't be expressed through Supabase's
+  auto-generated REST API — an upsert becomes an `INSERT ... ON CONFLICT` and
+  trips over the NOT NULL columns — so reordering goes through a custom SQL
+  function using `unnest(ids) with ordinality` to renumber the whole shelf in
+  one atomic statement, declared `security invoker` so RLS still applies.
+  React: the new order has to appear instantly but must not survive a failed
+  write, which is what React 19's `useOptimistic` gives — on error it stops
+  overriding and the shelf snaps back to server truth, with no manual rollback
+  path that could drift. CSS: the dragged book has to render in a portal,
+  because each tome lives inside a `perspective` container and a transformed
+  ancestor re-bases `position: fixed`, making an in-place drag drift away from
+  the cursor.
+- **Destructive operations that span two storage systems.** Deleting a game
+  cascades to its journal entries in Postgres, but embedded screenshots are
+  Supabase Storage objects with no foreign key pointing at them — no cascade
+  reaches them. Cleanup walks each entry's ProseMirror document for media
+  nodes, filters out externally hosted URLs so the app never deletes something
+  it doesn't own, then removes the blobs *after* the rows. Since no
+  transaction spans Postgres and Storage, the ordering is chosen for its
+  failure mode: a failed blob delete leaves invisible orphaned files, whereas
+  the reverse order would leave visibly broken images under live entries.
 - **Automated test coverage across both layers.** Vitest covers the pure
-  logic (spine-thickness scaling, RAWG response mapping) and Playwright
+  logic (spine-thickness scaling, RAWG response mapping, Storage path
+  extraction from ProseMirror documents) and Playwright
   drives a real browser through the full authenticated flow — sign in,
   search RAWG, add a game, write an entry, and verify the shelf reflects it
   — using Supabase's admin API to provision and tear down a throwaway test
@@ -64,7 +89,7 @@ project.
 ## Stack
 
 Next.js · Supabase (Postgres/Auth/Storage) · RAWG.io · Tiptap · Tailwind CSS ·
-shadcn/ui · Framer Motion
+shadcn/ui · Base UI · Motion · dnd-kit
 
 ## Getting started
 
@@ -95,6 +120,7 @@ Run migrations in filename order when setting up a new project.
 ## Testing
 
 ```bash
-npm run test        # Vitest — pure logic (spine thickness scaling, RAWG data mapping)
+npm run test        # Vitest — pure logic (spine thickness scaling, RAWG data
+                    #   mapping, journal media path extraction)
 npm run test:e2e    # Playwright — see e2e/README.md for the authenticated-flow setup
 ```

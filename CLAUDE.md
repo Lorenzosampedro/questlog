@@ -52,6 +52,20 @@ for simpler RLS). Entry count per game is computed with a `count(*)` query,
 not a denormalized counter. Images/videos embedded in an entry are Tiptap
 nodes pointing at Supabase Storage URLs — there's no separate media table.
 
+**Deletion**: `journal_entries.library_game_id` is `on delete cascade`, so
+`deleteGame` removes one row and Postgres removes the entries. Storage is the
+part the database *can't* cascade to — embedded media are bucket objects with
+no foreign key pointing at them — so `deleteGame` reads the entry bodies
+first, extracts bucket paths with `collectMediaPaths`
+(`src/lib/journal-media.ts`), deletes the game, and removes the blobs last.
+That order is deliberate: there's no transaction spanning Postgres and
+Storage, and a failed blob delete leaves invisible orphaned files, whereas the
+reverse order would leave visibly broken images under live entries. Blob
+removal is best-effort and never fails the action. `deleteEntries` batch-
+deletes with a single `.in("id", ids)` statement rather than a loop.
+Note `deleteGame` leaves gaps in `sort_order`; nothing reads it as an index,
+and the next reorder renumbers to `0..n-1`.
+
 **Security is enforced at the database, not the route layer.** Every table
 has RLS policies scoped to `auth.uid() = user_id`; Storage bucket paths are
 scoped per-user (`{user_id}/...`). `src/proxy.ts` also gates `/library/**`
@@ -73,7 +87,26 @@ Components.
 inconsistent nested `platforms`/`genres` shapes into flat string arrays —
 this mapper is the thing covered by `rawg-mapper.test.ts`.
 
-**The tome shelf** (`src/components/tome-shelf.tsx`, `tome.tsx`): each
+Shelf order is a user-controlled `library_games.sort_order` column
+(`20260727000000_library_games_sort_order.sql`), not `added_at`. Reordering
+goes through the `reorder_library_games(uuid[])` SQL function rather than
+PostgREST — a per-row `update` can't be expressed as an upsert without the
+NOT NULL columns. New games are inserted at `min(sort_order) - 1` rather than
+shifting every row.
+
+**The tome shelf** (`src/components/tome-shelf.tsx`, `sortable-tome.tsx`,
+`tome.tsx`): drag-and-drop via `@dnd-kit`, with `useOptimistic` for the
+immediate reorder (it reverts to server state on failure — there is no manual
+rollback) and a `DragOverlay`, which is load-bearing rather than cosmetic: a
+`Tome` sits inside a `perspective` container, and a transformed ancestor
+re-bases `position: fixed`, so an in-place drag drifts from the cursor.
+`PointerSensor` needs `activationConstraint: { distance: 8 }` or every click
+on a book reads as a drag and the `<Link>` never fires. dnd-kit owns the
+`<li>`'s `transform`, so the Motion entrance stagger lives on an inner
+`motion.div` — two libraries writing the same CSS property fight. `Tome`
+tracks hover in state instead of Motion's `whileHover` because a drag sensor
+captures the pointer, `pointerleave` never arrives, and the hover pose would
+latch on permanently; `isDragging` clears it. Each
 library game renders as a "book" whose spine thickness is
 `getSpineDepth(entryCount)` (`src/lib/tome.ts`) — a capped logarithmic curve
 between `TOME_MIN_DEPTH`/`TOME_MAX_DEPTH`, tested in `tome.test.ts`. Books
@@ -97,7 +130,13 @@ each level (`library/actions.ts` for library-level mutations,
 (`login`, `sign-up`, OAuth `callback`, email `confirm`) live under
 `src/app/auth/`.
 
+**UI primitives** (`src/components/ui/`) wrap `@base-ui/react` headless
+components — note Base UI's `render` prop, not Radix's `asChild`. `AlertDialog`
+(not `Dialog`) is used for destructive confirmations specifically because it
+can't be dismissed by backdrop click or Escape; enter/exit animation uses
+Base UI's `data-starting-style`/`data-ending-style`, not `AnimatePresence`.
+
 **Testing split**: Vitest covers pure logic only (spine-depth scaling, RAWG
-mapping) — no component/DOM tests. Playwright covers real authenticated
+mapping, journal media path extraction) — no component/DOM tests. Playwright covers real authenticated
 browser flows, provisioning and tearing down a throwaway Supabase user per
 run via the admin API.

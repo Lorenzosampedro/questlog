@@ -24,6 +24,10 @@ export default async function LibraryPage() {
   const { data: rows, error } = await supabase
     .from("library_games")
     .select("id, name, cover_url, spine_color, journal_entries(count)")
+    // sort_order is the user's own arrangement; added_at is the tiebreaker so
+    // the order is total and stable. Without a deterministic tiebreak, two
+    // rows sharing a sort_order could swap between renders.
+    .order("sort_order", { ascending: true })
     .order("added_at", { ascending: false })
     .returns<LibraryGameRow[]>();
 
