@@ -4,9 +4,62 @@ A digital museum for your gaming life. Journal the games you play; each game
 becomes a "tome" in your personal library, and the more you've written about
 it, the thicker its spine renders on your shelf.
 
-CS50x final project. The CS50 writeup (distinctiveness/complexity rationale)
-and demo video will be added here once the MVP is complete. See
-[`PLAN.md`](./PLAN.md) for the full design doc.
+CS50x final project. See [`PLAN.md`](./PLAN.md) for the full design doc.
+
+## CS50 submission
+
+**Demo video:** _TODO — add link once recorded._
+
+### Distinctiveness and complexity
+
+Questlog isn't a CRUD form wearing a theme — the two hardest problems in the
+app are things CS50's problem sets never touch:
+
+- **The tome shelf is a real rendering algorithm, not a static layout.**
+  Each game's spine thickness is driven by `getSpineDepth()`
+  ([`src/lib/tome.ts`](./src/lib/tome.ts)), a capped logarithmic function of
+  that game's journal entry count, so growth is visible early but never
+  produces a spine that swallows the shelf. The books themselves are
+  composed as true 3D objects — six independently transformed faces
+  (`preserve-3d`, per-face `rotateY`/`translateZ`, sized and positioned so
+  they meet exactly at the spine edge) rendered with CSS alone, no
+  WebGL/Three.js. Getting the face composition right required working out
+  the transform-matrix math by hand (rotate each face around its own center,
+  then translate it out along Z by half the book's own depth), not
+  copy-pasting a tutorial snippet.
+- **Auth and data access are handled at the database layer, not just the UI
+  layer.** Sign-in supports email/password plus two OAuth providers (Google,
+  Discord) through Supabase Auth, with SSR cookie-based sessions
+  (`@supabase/ssr`) and a `proxy.ts` gate on every protected route. But the
+  real enforcement is Postgres Row-Level Security: every table's policies
+  are scoped to `auth.uid() = user_id`, so even a bug in the Next.js route
+  handlers couldn't leak one user's library or journal entries to another —
+  the database refuses the query, not just the UI.
+- **Integrating three independent, non-trivial subsystems into one flow.**
+  A game added via the RAWG.io API becomes a shelf tome whose thickness
+  reacts live to entries written in a Tiptap (ProseMirror) rich-text editor
+  with a custom formatting/highlight toolbar and inline image uploads to
+  Supabase Storage, scoped per-user by storage path. None of these are
+  simple to wire up individually (RAWG's inconsistent nested platform/genre
+  shapes needed their own mapping layer; Tiptap's server-side HTML
+  generation doesn't work at all — it needs a real DOM — which forced a
+  client-side read-only render for the view page); getting all three to
+  agree on one data model (a `library_game` owning many `journal_entries`,
+  entry count driving spine width, entry body driving storage cleanup on
+  delete) is where the actual complexity lives.
+- **Automated test coverage across both layers.** Vitest covers the pure
+  logic (spine-thickness scaling, RAWG response mapping) and Playwright
+  drives a real browser through the full authenticated flow — sign in,
+  search RAWG, add a game, write an entry, and verify the shelf reflects it
+  — using Supabase's admin API to provision and tear down a throwaway test
+  user per run.
+
+Distinct from prior CS50 work in another sense too: nothing in the course
+covers CSS 3D transform composition, Postgres RLS policy design, OAuth
+provider setup against real third-party developer consoles (Google Cloud
+Console, Discord Developer Portal), or a ProseMirror-based rich text editor
+— all of which had to be learned and integrated from scratch for this
+project.
 
 ## Stack
 
