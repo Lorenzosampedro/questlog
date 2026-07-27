@@ -4,25 +4,14 @@ A digital museum for your gaming life. Journal the games you play; each game
 becomes a "tome" in your personal library, and the more you've written about
 it, the thicker its spine renders on your shelf.
 
-CS50x final project. See [`PLAN.md`](./PLAN.md) for the full design and
-implementation plan. The CS50 writeup (distinctiveness/complexity rationale)
-and demo video will be added here once the MVP is complete.
+CS50x final project. The CS50 writeup (distinctiveness/complexity rationale)
+and demo video will be added here once the MVP is complete. See
+[`PLAN.md`](./PLAN.md) for the full design doc.
 
 ## Stack
 
 Next.js · Supabase (Postgres/Auth/Storage) · RAWG.io · Tiptap · Tailwind CSS ·
 shadcn/ui · Framer Motion
-
-## Progress
-
-- [x] **Phase 0** — GitHub repo
-- [x] **Phase 1** — Next.js + Tailwind + shadcn/ui scaffold, Supabase project, RAWG.io key
-- [x] **Phase 2** — Auth: email/password + Google/Discord OAuth (via Supabase Auth), session
-      refresh + route protection (`src/proxy.ts`), protected `/library` placeholder
-- [x] **Phase 3** — Database schema + RLS policies (`profiles`, `library_games`,
-      `journal_entries`; see [`supabase/migrations/`](./supabase/migrations))
-- [ ] **Phase 4** — Game search & library
-- [ ] Phases 5-10 — see [`PLAN.md`](./PLAN.md)
 
 ## Getting started
 
