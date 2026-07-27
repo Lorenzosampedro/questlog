@@ -58,7 +58,11 @@ export function EntryEditor({
 
     const input = {
       title: title.trim() || null,
-      body: editor.getJSON(),
+      // Sent as a string, not a nested object — passing the raw ProseMirror
+      // JSON tree as a Server Action argument intermittently drops nested
+      // "attrs" (image/video src) somewhere in RSC's argument serialization.
+      // A plain string sidesteps that entirely.
+      body: JSON.stringify(editor.getJSON()),
       datePlayed: datePlayed || null,
       rating,
     };
