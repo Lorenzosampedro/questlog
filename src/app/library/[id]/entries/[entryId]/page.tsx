@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import type { JSONContent } from "@tiptap/core";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { EntryEditor } from "../entry-editor";
+import { buttonVariants } from "@/components/ui/button";
+import { EntryView } from "../entry-view";
 
 type JournalEntryRow = {
   id: string;
@@ -11,6 +12,7 @@ type JournalEntryRow = {
   body: JSONContent;
   date_played: string | null;
   rating: number | null;
+  created_at: string;
 };
 
 export default async function EntryPage({
@@ -25,7 +27,7 @@ export default async function EntryPage({
   const supabase = await createClient();
   const { data: entry } = await supabase
     .from("journal_entries")
-    .select("id, title, body, date_played, rating")
+    .select("id, title, body, date_played, rating, created_at")
     .eq("id", entryId)
     .maybeSingle()
     .returns<JournalEntryRow>();
@@ -37,16 +39,26 @@ export default async function EntryPage({
       <Link href={`/library/${id}`} className="text-sm text-zinc-500 hover:underline">
         ← Back to game
       </Link>
-      <h1 className="text-2xl font-semibold tracking-tight">Edit entry</h1>
-      <EntryEditor
-        gameId={id}
-        userId={user.id}
-        entryId={entry.id}
-        initialTitle={entry.title}
-        initialBody={entry.body}
-        initialDatePlayed={entry.date_played}
-        initialRating={entry.rating}
-      />
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {entry.title || "Untitled entry"}
+          </h1>
+          <p className="text-sm text-zinc-500">
+            {(entry.date_played ?? entry.created_at).slice(0, 10)}
+            {entry.rating ? ` · ${entry.rating}★` : ""}
+          </p>
+        </div>
+        <Link
+          href={`/library/${id}/entries/${entryId}/edit`}
+          className={buttonVariants({ size: "sm", variant: "outline" })}
+        >
+          Edit
+        </Link>
+      </div>
+
+      <EntryView body={entry.body} />
     </div>
   );
 }

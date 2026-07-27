@@ -64,7 +64,7 @@ export async function updateEntry(
 
   revalidatePath(`/library/${gameId}`);
   revalidatePath(`/library/${gameId}/entries/${entryId}`);
-  return { success: true };
+  redirect(`/library/${gameId}/entries/${entryId}`);
 }
 
 export async function deleteEntry(entryId: string, gameId: string) {
