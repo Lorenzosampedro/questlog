@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageTransition } from "@/components/page-transition";
 import { EntryList } from "./entry-list";
 import { DeleteGameButton } from "./delete-game-button";
+import { ExportButton } from "./export-button";
 
 type LibraryGame = {
   id: string;
@@ -101,7 +102,8 @@ export default async function GamePage({
             <p className="text-sm text-zinc-500">{game.genres.join(", ")}</p>
           )}
 
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-start gap-2">
+            <ExportButton gameId={game.id} />
             <DeleteGameButton
               gameId={game.id}
               gameName={game.name}

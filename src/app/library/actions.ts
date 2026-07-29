@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { JSONContent } from "@tiptap/core";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getAverageColor } from "@/lib/cover-color";
@@ -9,6 +10,7 @@ import {
   JOURNAL_MEDIA_BUCKET,
   collectMediaPaths,
 } from "@/lib/journal-media";
+import { gameExportFilename, gameToMarkdown } from "@/lib/markdown-export";
 import type { RawgGameSummary } from "@/lib/rawg";
 
 const UNIQUE_VIOLATION = "23505";
@@ -145,4 +147,59 @@ export async function deleteGame(gameId: string) {
 
   revalidatePath("/library");
   redirect("/library");
+}
+
+/**
+ * Turn one game's journal into a single portable markdown file, for users
+ * who want their entries in Notion/Obsidian/anywhere else that reads
+ * markdown. Entries are ordered oldest-first (chronological), unlike the
+ * game page's newest-first display order — an export reads like a
+ * narrative, not a feed.
+ */
+export async function exportGameMarkdown(
+  gameId: string,
+): Promise<{ error: string } | { markdown: string; filename: string }> {
+  const user = await getUser();
+  if (!user) redirect("/auth/login");
+
+  const supabase = await createClient();
+
+  const [
+    { data: game, error: gameError },
+    { data: entries, error: entriesError },
+  ] = await Promise.all([
+    supabase
+      .from("library_games")
+      .select("name, platforms, genres, release_date")
+      .eq("id", gameId)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("journal_entries")
+      .select("title, body, date_played, rating")
+      .eq("library_game_id", gameId)
+      .eq("user_id", user.id)
+      .order("date_played", { ascending: true, nullsFirst: true }),
+  ]);
+
+  if (gameError || entriesError || !game) {
+    return { error: "Failed to load game for export" };
+  }
+
+  const markdown = gameToMarkdown(
+    {
+      name: game.name,
+      platforms: game.platforms,
+      genres: game.genres,
+      releaseDate: game.release_date,
+    },
+    (entries ?? []).map((entry) => ({
+      title: entry.title,
+      body: entry.body as JSONContent,
+      datePlayed: entry.date_played,
+      rating: entry.rating,
+    })),
+  );
+
+  return { markdown, filename: gameExportFilename(game.name) };
 }

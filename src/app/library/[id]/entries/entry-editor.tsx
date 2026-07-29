@@ -3,10 +3,7 @@
 import { useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import type { JSONContent } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import Highlight from "@tiptap/extension-highlight";
-import Image from "@tiptap/extension-image";
-import { Video } from "@/lib/tiptap/video";
+import { journalEditorExtensions } from "@/lib/tiptap/extensions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -41,7 +38,7 @@ export function EntryEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, Highlight, Image, Video],
+    extensions: journalEditorExtensions,
     content: initialBody ?? "",
     editorProps: {
       attributes: {
