@@ -8,7 +8,15 @@ CS50x final project. See [`PLAN.md`](./PLAN.md) for the full design doc.
 
 ## CS50 submission
 
-**Demo video:** _TODO — add link once recorded._
+**Demo video:** https://youtube.com/shorts/f7l7Dvnvupw?feature=share
+
+**AI tools:** Built with substantial assistance from Claude (Anthropic),
+used throughout development — planning and architecture, implementation,
+debugging, and refactoring — as permitted under CS50's final-project AI
+policy ([cs50.harvard.edu/x/project](https://cs50.harvard.edu/x/project/)).
+The essence of the design decisions, product direction, and review of every
+change is my own; a few representative source files carry a short comment
+pointing back to this note.
 
 ### Distinctiveness and complexity
 

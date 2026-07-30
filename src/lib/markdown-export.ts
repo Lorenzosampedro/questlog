@@ -1,3 +1,5 @@
+// AI tools (Claude, Anthropic) were used throughout this project's
+// development — see the "AI tools" note in README.md for scope.
 import { getSchema, type JSONContent } from "@tiptap/core";
 import { MarkdownSerializer } from "prosemirror-markdown";
 import { journalEditorExtensions } from "@/lib/tiptap/extensions";

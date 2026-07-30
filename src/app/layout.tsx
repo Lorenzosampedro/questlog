@@ -1,3 +1,5 @@
+// AI tools (Claude, Anthropic) were used throughout this project's
+// development — see the "AI tools" note in README.md for scope.
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
