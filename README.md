@@ -99,6 +99,65 @@ project.
 Next.js · Supabase (Postgres/Auth/Storage) · RAWG.io · Tiptap · Tailwind CSS ·
 shadcn/ui · Base UI · Motion · dnd-kit
 
+## Project structure
+
+**`src/app/`** — routes (Next.js App Router):
+- `auth/` — login, sign-up, OAuth callback, email confirmation; `actions.ts`
+  holds the server actions (`signInWithOAuth`, `signInWithPassword`, `signUp`).
+- `library/` — the shelf (`page.tsx`), a single game's page
+  (`[id]/page.tsx`), and entry CRUD nested under `[id]/entries/`. Each level
+  has its own `actions.ts` for that level's mutations (a game's own actions —
+  add/reorder/delete/export — live in `library/actions.ts`; an entry's
+  create/update/delete live in `library/[id]/entries/actions.ts`).
+- `library/[id]/entries/entry-editor.tsx` + `entry-toolbar.tsx` — the Tiptap
+  rich-text editor and its formatting/image/video toolbar.
+- `library/[id]/export-button.tsx` — calls the markdown-export server action
+  and downloads the result as a `.md` file.
+- `api/rawg/search/route.ts` — a Route Handler (not a Server Action) wrapping
+  the RAWG search, so the game-search UI can call it with a debounced `fetch`.
+- `layout.tsx`, `page.tsx`, `not-found.tsx` — root shell, landing page, 404.
+
+**`src/components/`**:
+- `tome.tsx`, `tome-shelf.tsx`, `sortable-tome.tsx` — the 3D book rendering
+  and the drag-to-reorder shelf.
+- `nav.tsx`, `theme-toggle.tsx`, `page-transition.tsx`, `star-rating.tsx` —
+  shared chrome.
+- `ui/` — shadcn/ui-style primitives wrapping Base UI (button, input, label,
+  checkbox, separator, alert-dialog).
+
+**`src/lib/`** — the actual logic, most of it covered by the Vitest suite:
+- `tome.ts` — `getSpineDepth()`, the capped log-scale spine-thickness curve.
+- `rawg.ts` / `rawg-mapper.ts` — the RAWG.io API client and the mapper that
+  normalizes its inconsistent response shapes.
+- `journal-media.ts` — walks a Tiptap document to find Storage-hosted media,
+  used by delete-cleanup so orphaned blobs don't pile up.
+- `markdown-export.ts` — converts a Tiptap document, and a game's full entry
+  list, into portable markdown (with YAML frontmatter) for the "Export as
+  Markdown" feature.
+- `storage.ts` — uploads journal images/video to Supabase Storage.
+- `cover-color.ts` — extracts a game cover's average color for the tome's
+  spine tint.
+- `auth.ts` — `getUser()`, cached per-request via React's `cache()`.
+- `supabase/client.ts` vs. `supabase/server.ts` — the browser vs. server
+  Supabase client split (cookie-based sessions differ between the two).
+- `tiptap/` — the shared editor extension list (`extensions.ts`, reused by
+  both the live editor and the markdown exporter so their schemas can't
+  drift apart) and the custom `Video` node.
+
+**`src/proxy.ts`** — runs before every request; refreshes the Supabase
+session and redirects logged-out requests away from `/library/**`.
+
+**`supabase/migrations/`** — hand-applied SQL migrations, run in filename
+order: base schema + RLS policies, the journal-media Storage bucket, the
+spine-color column, and the shelf's `sort_order` column plus its reorder
+function.
+
+**`e2e/`** and **`*.test.ts`** — Playwright specs (`public.spec.ts`,
+`core-flow.spec.ts`) drive a real browser through the authenticated flow;
+`*.test.ts` files sit next to their subject in `src/lib/` and cover the
+pure-logic pieces (spine depth, RAWG mapping, media-path extraction,
+markdown export).
+
 ## Getting started
 
 Requires **Node.js 22+**.
